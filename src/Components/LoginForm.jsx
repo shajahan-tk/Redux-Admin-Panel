@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Cookies from 'js-cookie';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
@@ -8,31 +9,49 @@ export default function LoginForm() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Load sample data if not already present in cookies
+  useEffect(() => {
+    if (!Cookies.get('formData')) {
+      const sampleData = [
+        { username: 'adminUser', password: 'adminPass', title: 'Add Admin' },
+        { username: 'normalUser', password: 'userPass', title: 'Add User' },
+      ];
+      Cookies.set('formData', JSON.stringify(sampleData), { expires: 7 });
+    }
+  }, []);
+
+  // Redirect to home page if already logged in
+  useEffect(() => {
+    const isAuthenticated = Cookies.get('isAuthenticated');
+    if (isAuthenticated) {
+      const homeRoute = isAuthenticated === 'admin' ? '/adminhome' : '/userhome';
+      navigate(homeRoute, { replace: true });
+    }
+  }, [navigate]);
+
   const handleLogin = (e) => {
     e.preventDefault();
-  
-    const storedData = JSON.parse(localStorage.getItem('formData')) || [];
+
+    const storedData = JSON.parse(Cookies.get('formData') || '[]');
     const user = storedData.find(
       (user) =>
         user.username === username &&
         user.password === password &&
         ((loginType === 'admin' && user.title === 'Add Admin') ||
-         (loginType === 'user' && user.title === 'Add User'))
+          (loginType === 'user' && user.title === 'Add User'))
     );
-  
+
     if (user) {
       setError('');
-      alert(`Welcome, ${user.title}!`);
-      if (loginType === 'admin') {
-        navigate('/adminhome', { state: { user } });
-      } else {
-        navigate('/userhome', { state: { user } });
-      }
+      Cookies.set('isAuthenticated', loginType, { expires: 7 });
+      Cookies.set('loggedInUser', JSON.stringify(user), { expires: 7 });
+
+      const homeRoute = loginType === 'admin' ? '/adminhome' : '/userhome';
+      navigate(homeRoute, { state: { user }, replace: true });
     } else {
       setError(`Invalid ${loginType === 'admin' ? 'Admin' : 'User'} username or password`);
     }
   };
-  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-green-500 to-purple-600">
